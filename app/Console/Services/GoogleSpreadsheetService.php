@@ -162,12 +162,14 @@ class GoogleSpreadsheetService
                 'additionalInfo' => $get($row, 'additionalInfo'),
                 'colecao'        => $get($row, 'colecao'),
                 // Tipo vem por extenso e pode ser composto ("Lendário-Artefato",
-                // "Artefato-Criatura"). Sai cru; o front trata como multi-valor.
-                'Tipo'           => $get($row, 'Tipo'),
+                // "Artefato-Criatura"). Sai (quase) cru; o front trata como multi-valor.
+                'Tipo'           => $this->cleanTipo($get($row, 'Tipo')),
                 'subtipo'        => $get($row, 'subtipo'),
                 'Raridade'       => $this->canonicalizeRaridade($get($row, 'Raridade')),
                 'Custo'          => $get($row, 'Custo'),
-                'formato'        => $this->normalizeFormato($get($row, 'formato')),
+                // Formato mantém TODOS os nomes (incl. Pauper/Premodern); o front
+                // monta os chips dinamicamente a partir dos valores presentes.
+                'formato'        => $this->cleanFormato($get($row, 'formato')),
                 'artista'        => $get($row, 'artista'),
                 'image'          => $get($row, 'image'),
                 'category'       => mb_strtoupper($get($row, 'category')),
@@ -207,48 +209,47 @@ class GoogleSpreadsheetService
     }
 
     /**
-     * Formato de legalidade. Pode vir como letras "C-M-L", por extenso pontuado
-     * ("Standard.Pioneer.Modern...") ou lixo (ex.: cor "B" vazada). Normaliza para
-     * letras únicas separadas por '-'. Valores inválidos viram string vazia.
+     * Formato de legalidade — mantém TODOS os nomes por extenso (Standard, Pioneer,
+     * Modern, Legacy, Vintage, Commander, Pauper, Premodern...). Só limpa/normaliza
+     * o separador ('.' ou '-') e a capitalização. Nada é descartado.
      */
-    private function normalizeFormato(string $value): string
+    private function cleanFormato(string $value): string
     {
         $value = trim($value);
         if ($value === '') {
             return '';
         }
 
-        $map = [
-            'standard'  => 'S',
-            'pioneer'   => 'P',
-            'modern'    => 'M',
-            'legacy'    => 'L',
-            'vintage'   => 'V',
-            'commander' => 'C',
-            'pauper'    => 'PA',
-        ];
-
-        $validLetters = ['S', 'P', 'M', 'L', 'V', 'C'];
-
+        // separa por '.' ou '-'; ignora letra solta ("B" vazada da cor).
         $tokens = preg_split('/[.\-]+/', $value);
         $out = [];
 
         foreach ($tokens as $token) {
             $token = trim($token);
-            if ($token === '') {
+            if ($token === '' || mb_strlen($token) === 1) {
                 continue;
             }
-
-            if (mb_strlen($token) === 1) {
-                $letter = mb_strtoupper($token);
-                if (in_array($letter, $validLetters, true)) {
-                    $out[] = $letter;
-                }
-            } elseif (isset($map[mb_strtolower($token)])) {
-                $out[] = $map[mb_strtolower($token)];
-            }
+            $out[] = mb_convert_case(mb_strtolower($token), MB_CASE_TITLE);
         }
 
         return implode('-', array_unique($out));
+    }
+
+    /**
+     * Tipo — mantém por extenso (multi-tipo separado por '-'). Só unifica a variação
+     * "Mágica-Instantânea" / "Mágica Instantânea" para "Instantânea".
+     */
+    private function cleanTipo(string $value): string
+    {
+        $value = trim($value);
+        if ($value === '') {
+            return '';
+        }
+
+        return str_ireplace(
+            ['Mágica-Instantânea', 'Mágica Instantânea', 'Magica-Instantanea', 'Magica Instantanea'],
+            'Instantânea',
+            $value
+        );
     }
 }
