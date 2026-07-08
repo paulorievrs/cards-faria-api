@@ -24,12 +24,14 @@ class GoogleSpreadsheetService
         'nome em prbr' => 'Nome Portugues',
         'nome ptbr'    => 'Nome Portugues',
         'nome pt-br'   => 'Nome Portugues',
+        'search code'  => 'searchCode',
         'idioma'       => 'idioma',
         'set id'       => 'setId',
         'qtd'          => 'qty',
         'preco'        => 'price',
         'condicao'     => 'condicao',
-        'foil-promo'   => 'FOIL?',
+        'acabamento'   => 'acabamento',
+        'foil-promo'   => 'acabamento',
         'extra'        => 'additionalInfo',
         'colecao'      => 'colecao',
         'tipo'         => 'Tipo',
@@ -90,7 +92,8 @@ class GoogleSpreadsheetService
      */
     private function normalizeHeader(string $value): string
     {
-        $value = trim(mb_strtolower($value));
+        // Colapsa qualquer espaço/quebra de linha interna (ex.: "Search\nCode").
+        $value = trim(mb_strtolower(preg_replace('/\s+/', ' ', $value)));
         $from = ['á','à','â','ã','ä','é','ê','è','í','ì','î','ó','ô','õ','ò','ö','ú','ù','û','ü','ç'];
         $to   = ['a','a','a','a','a','e','e','e','i','i','i','o','o','o','o','o','u','u','u','u','c'];
 
@@ -150,15 +153,19 @@ class GoogleSpreadsheetService
                 continue;
             }
 
+            $acabamento = $get($row, 'acabamento');
+
             $cards[] = [
                 'name'           => $name,
+                'searchCode'     => $get($row, 'searchCode'),
                 'Nome Portugues' => $get($row, 'Nome Portugues', '-'),
                 'idioma'         => mb_strtoupper($get($row, 'idioma')),
                 'setId'          => $get($row, 'setId'),
                 'qty'            => $get($row, 'qty', '0'),
                 'price'          => $get($row, 'price', '0'),
                 'condicao'       => mb_strtoupper($get($row, 'condicao')),
-                'FOIL?'          => $get($row, 'FOIL?'),
+                'acabamento'     => $acabamento,
+                'FOIL?'          => $acabamento, // compat com o front antigo
                 'additionalInfo' => $get($row, 'additionalInfo'),
                 'colecao'        => $get($row, 'colecao'),
                 // Tipo vem por extenso e pode ser composto ("Lendário-Artefato",
