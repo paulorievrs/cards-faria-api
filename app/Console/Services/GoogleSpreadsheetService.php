@@ -119,6 +119,24 @@ class GoogleSpreadsheetService
         return $indexes;
     }
 
+    /**
+     * Acha a linha de cabeçalho (a que contém "Nome do Card"). O cliente pode
+     * mover os títulos de linha (ex.: da linha 1 para a 2). Procura nas primeiras
+     * 15 linhas; cai na linha 0 se não achar.
+     */
+    private function findHeaderIndex(array $rows): int
+    {
+        $limit = min(count($rows), 15);
+        for ($i = 0; $i < $limit; $i++) {
+            foreach ($rows[$i] as $cell) {
+                if ($this->normalizeHeader((string) $cell) === 'nome do card') {
+                    return $i;
+                }
+            }
+        }
+        return 0;
+    }
+
     public function getRowsWithKey(): array
     {
         $rows = $this->fetchAllRows();
@@ -127,11 +145,18 @@ class GoogleSpreadsheetService
             return [];
         }
 
-        $cols = $this->resolveColumns($rows[0]);
+        $headerIndex = $this->findHeaderIndex($rows);
+        $cols = $this->resolveColumns($rows[$headerIndex]);
 
         // Sem a coluna de nome não há como montar cartas.
         if (!isset($cols['name'])) {
             return [];
+        }
+
+        // "Search Code" ficou sem cabeçalho no rearranjo do cliente, mas o código
+        // continua na coluna C (índice 2). Usa como fallback se não houver header.
+        if (!isset($cols['searchCode']) && !in_array(2, $cols, true)) {
+            $cols['searchCode'] = 2;
         }
 
         $get = function (array $row, string $key, $default = '') use ($cols) {
@@ -145,11 +170,16 @@ class GoogleSpreadsheetService
 
         $cards = [];
 
-        foreach (array_slice($rows, 1) as $row) {
+        foreach (array_slice($rows, $headerIndex + 1) as $row) {
             $name = $get($row, 'name');
 
             // Ignora sub-cabeçalhos, totais e linhas vazias.
             if ($name === '') {
+                continue;
+            }
+
+            // Linha de rótulo/fórmula (ex.: "FÓRMULA") não tem qty nem preço.
+            if ($get($row, 'qty') === '' && $get($row, 'price') === '') {
                 continue;
             }
 
