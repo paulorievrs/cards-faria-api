@@ -29,6 +29,7 @@ class GoogleSpreadsheetService
         'set id'       => 'setId',
         'qtd'          => 'qty',
         'preco'        => 'price',
+        'total'        => 'total',
         'condicao'     => 'condicao',
         'acabamento'   => 'acabamento',
         'foil-promo'   => 'acabamento',
@@ -194,6 +195,7 @@ class GoogleSpreadsheetService
                 'setId'          => $get($row, 'setId'),
                 'qty'            => $get($row, 'qty', '0'),
                 'price'          => $get($row, 'price', '0'),
+                'total'          => $this->parseMoney($get($row, 'total')),
                 'condicao'       => mb_strtoupper($get($row, 'condicao')),
                 'acabamento'     => $acabamento,
                 'FOIL?'          => $acabamento, // compat com o front antigo
@@ -245,6 +247,16 @@ class GoogleSpreadsheetService
         ];
 
         return $map[$key] ?? $value;
+    }
+
+    /**
+     * Converte valor monetário da planilha ("$140.00", "R$ 1,406.00") para float.
+     * A planilha usa formato US: ponto decimal e vírgula de milhar.
+     */
+    private function parseMoney(string $value): float
+    {
+        $clean = preg_replace('/[^0-9.]/', '', str_replace(',', '', trim($value)));
+        return $clean === '' ? 0.0 : (float) $clean;
     }
 
     /**
