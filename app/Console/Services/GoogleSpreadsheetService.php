@@ -42,6 +42,7 @@ class GoogleSpreadsheetService
         'artista'      => 'artista',
         'imagem'       => 'image',
         'cor'          => 'category',
+        'ra'           => 'ra',
         'dono'         => 'dono',
     ];
 
@@ -210,6 +211,7 @@ class GoogleSpreadsheetService
                 'artista'        => $get($row, 'artista'),
                 'image'          => $get($row, 'image'),
                 'category'       => mb_strtoupper($get($row, 'category')),
+                'ra'             => mb_strtoupper($get($row, 'ra')),
                 'dono'           => $get($row, 'dono'),
             ];
         }
